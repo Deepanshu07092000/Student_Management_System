@@ -1,6 +1,6 @@
 # Student Management System
 
-A RESTful backend application built using **Java 17, Spring Boot 3.3.5, Spring Security, JWT, MySQL, and Redis** to manage students, departments, courses, and enrollment workflows.
+A RESTful backend application built using **Java 17, Spring Boot 3.3.5, Spring Security, JWT, Google OAuth2, MySQL, and Redis** to manage students, departments, courses, and enrollment workflows.
 
 ## Table of Contents
 
@@ -13,7 +13,6 @@ A RESTful backend application built using **Java 17, Spring Boot 3.3.5, Spring S
 - [Authentication and Security](#authentication-and-security)
 - [API Documentation](#api-documentation)
 - [Getting Started](#getting-started)
-- [Configuration](#configuration)
 - [API Examples](#api-examples)
 - [Logging and Monitoring](#logging-and-monitoring)
 - [Error Handling](#error-handling)
@@ -25,9 +24,9 @@ A RESTful backend application built using **Java 17, Spring Boot 3.3.5, Spring S
 
 The Student Management System is a backend application designed to manage student records and academic information through RESTful APIs.
 
-The application follows a layered architecture that separates controllers, services, repositories, entities, DTOs, security components, and configuration. It incorporates practical backend engineering concepts such as entity relationships, request validation, centralized exception handling, JWT-based authentication, Redis caching, file uploads, transaction management, and execution-time logging.
+The application follows a layered architecture that separates controllers, services, repositories, entities, DTOs, security components, and configuration.
 
-The project demonstrates how to build maintainable and extensible Spring Boot applications using commonly adopted backend development practices.
+It demonstrates practical backend engineering concepts, including entity relationships, request validation, centralized exception handling, JWT authentication, Google OAuth2 login, role-based authorization, Redis caching, file uploads, transaction management, and execution-time logging.
 
 ## Features
 
@@ -37,7 +36,7 @@ The project demonstrates how to build maintainable and extensible Spring Boot ap
 - Search students by first name or last name, ignoring case.
 - Upload or replace student profile images.
 - Validate incoming student data.
-- Transfer API data using request and response DTOs.
+- Use request and response DTOs.
 
 ### Department Management
 - Create, retrieve, update, and delete departments.
@@ -57,14 +56,17 @@ The project demonstrates how to build maintainable and extensible Spring Boot ap
 - Generate notifications as part of the enrollment workflow.
 - Use transaction management to keep related database changes consistent.
 
-### Security
-- JWT-based authentication.
-- Stateless authentication using Spring Security.
-- BCrypt password hashing.
+### Authentication and Security
+- JWT access-token authentication using JJWT.
+- Google OAuth2 login using Spring Security OAuth2 Client.
+- Generate an application-issued JWT after successful Google login.
 - Database-backed user authentication.
-- Custom JWT authentication filter.
-- Protected REST endpoints.
-- Public login and Swagger documentation endpoints.
+- BCrypt password hashing.
+- Custom JWT authentication filter and token validation.
+- Role-based authorization using `USER` and `ADMIN` roles.
+- Restrict selected student-management operations to administrators.
+- Secure protected APIs using Bearer tokens.
+- Keep login and configured Swagger/OpenAPI endpoints publicly accessible.
 
 ### Performance and Maintainability
 - Redis caching for frequently accessed course and department data.
@@ -73,9 +75,9 @@ The project demonstrates how to build maintainable and extensible Spring Boot ap
 - Bean Validation for incoming requests.
 - Centralized application logging.
 - Spring AOP-based execution-time logging.
-- JPA auditing for tracking entity creation and modification.
+- JPA auditing.
 - Swagger/OpenAPI documentation.
-- Spring Boot Actuator endpoints for application monitoring.
+- Spring Boot Actuator endpoints for monitoring.
 
 ## Technology Stack
 
@@ -84,8 +86,9 @@ The project demonstrates how to build maintainable and extensible Spring Boot ap
 | Java 17 | Programming language |
 | Spring Boot 3.3.5 | Application framework |
 | Spring Web | REST API development |
-| Spring Security | Authentication and request security |
-| JWT / JJWT 0.12.6 | Token generation and validation |
+| Spring Security | Authentication and authorization |
+| JWT / JJWT | Token generation and validation |
+| Spring Security OAuth2 Client | Google login |
 | Spring Data JPA | Database persistence |
 | Hibernate | ORM and entity mapping |
 | MySQL | Relational database |
@@ -110,7 +113,7 @@ Client / Postman / Swagger UI
               |
               v
         Service Layer
-     (Business Logic)
+       Business Logic
               |
               v
        Repository Layer
@@ -119,11 +122,13 @@ Client / Postman / Swagger UI
         Spring Data JPA
               |
               v
-          MySQL DB
+           MySQL DB
 
 Supporting Components:
 ----------------------
 Spring Security + JWT
+Google OAuth2 Login
+Role-Based Authorization
 Redis Cache
 DTOs + Validation
 Global Exception Handler
@@ -140,7 +145,7 @@ File Storage Service
 - **Repository Layer:** Provides database access using Spring Data JPA.
 - **Entity Layer:** Represents persistent domain objects and their relationships.
 - **DTO Layer:** Defines request and response structures independently of database entities.
-- **Security Layer:** Authenticates users and validates JWTs.
+- **Security Layer:** Authenticates users, validates JWTs, and applies authorization rules.
 - **Exception Layer:** Handles application exceptions and standardizes error responses.
 - **Configuration Layer:** Configures security, caching, auditing, OpenAPI, and other application components.
 - **Aspect Layer:** Logs service execution time using Spring AOP.
@@ -224,44 +229,38 @@ com.batch.sms
 └── StudentManagementSystemApplication.java
 ```
 
+*Note: The structure above represents the main packages and classes. OAuth2-specific classes may be present in your current implementation even if they are not listed individually here.*
+
 ## Database Design
 
 The application uses MySQL with Spring Data JPA and Hibernate.
 
-The primary domain entities include:
+### Main Entities
 
 - **Student:** Stores student details, contact information, date of birth, profile image path, and address.
 - **Department:** Represents an academic department and its associated students and courses.
 - **Course:** Stores course details, department association, and enrollment information.
 - **EnrollmentRequest:** Tracks course enrollment requests and their statuses.
 - **Notification:** Stores notification records generated by the enrollment workflow.
-- **User:** Stores authentication information and user role.
+- **User:** Stores authentication information and the user's role.
 
 ### Entity Relationships
 
 - **Department–Student:** One department can be associated with multiple students.
-- **Department–Course:** A department can contain multiple courses.
+- **Department–Course:** One department can contain multiple courses.
 - **Student–Course:** Many-to-many relationship for student course enrollments.
-- **Student–Address:** Address information is embedded within the student entity.
+- **Student–Address:** Address information is associated with the student.
 - **Enrollment Request:** Connects a student with a course and tracks the request lifecycle.
 
-JPA annotations define entity relationships and persistence mappings.
+JPA annotations define the entity relationships and persistence mappings.
 
 ## Authentication and Security
 
-The application uses Spring Security with JSON Web Tokens (JWT) to secure REST APIs.
+The application uses Spring Security, JWT, Google OAuth2, and role-based authorization to secure REST APIs.
 
-### Authentication Flow
+### 1. Username and Password Login
 
-1. The client sends a username and password to the login endpoint.
-2. Spring Security authenticates the credentials against the database.
-3. Password verification is performed using BCrypt.
-4. On successful authentication, the application generates a signed JWT access token.
-5. The client sends the token in the `Authorization` header for protected requests.
-6. The JWT authentication filter validates the token and establishes the authenticated security context.
-7. Requests without valid authentication are denied by Spring Security.
-
-### Login Endpoint
+The local login endpoint is:
 
 ```http
 POST /api/auth/login
@@ -272,42 +271,110 @@ Example request:
 
 ```json
 {
-  "username": "admin",
+  "username": "YOUR_USERNAME",
   "password": "YOUR_PASSWORD"
 }
 ```
 
-The response contains an access token, token type, and token expiration duration.
+Authentication flow:
 
-### Authorization Header
+1. The client submits the username and password.
+2. Spring Security authenticates the credentials against the database.
+3. BCrypt verifies the password.
+4. The application generates a signed JWT access token.
+5. The client uses the token to access protected APIs.
+6. The JWT filter validates the token and loads the user's authorities.
+7. Spring Security checks the user's roles before allowing access.
+
+The response includes the access token, token type, and token expiration duration.
+
+### 2. Google OAuth2 Login
+
+Start Google login using:
+
+```text
+http://localhost:8080/oauth2/authorization/google
+```
+
+Google OAuth2 flow:
+
+1. The user starts the Google login process.
+2. Spring Security redirects the user to Google.
+3. The user authenticates with Google.
+4. Google redirects to the application's OAuth2 callback.
+5. The application identifies the user using the verified email information.
+6. The application finds the existing local user or creates a new user with the `USER` role.
+7. The application generates its own JWT access token.
+8. The client uses the JWT as a Bearer token for protected API requests.
+
+The local redirect URI is:
+
+```text
+http://localhost:8080/login/oauth2/code/google
+```
+
+Configure this URI in Google Cloud Console for your OAuth client. For a deployed application, configure the corresponding deployed callback URI.
+
+### 3. JWT Authorization Header
+
+Send the JWT with protected API requests:
 
 ```http
 Authorization: Bearer YOUR_ACCESS_TOKEN
 ```
 
-### Token Configuration
+The configured access-token lifetime is **15 minutes**.
 
-The configured access token lifetime is **15 minutes**. The application uses stateless authentication and disables HTTP Basic and form-based login.
+### 4. Role-Based Authorization
 
-**Security note:** The current security configuration requires authentication for protected endpoints but does not yet enforce separate ADMIN and USER restrictions on individual endpoints. The `Role` enum and user role are present in the project.
+The application supports the following roles:
+
+| Role | Description |
+|---|---|
+| `USER` | Can access endpoints permitted to normal authenticated users |
+| `ADMIN` | Can access administrator-restricted endpoints |
+
+Selected student-management operations, including listing students and updating or deleting student records, are restricted to `ADMIN` according to the security configuration.
+
+A `401 Unauthorized` response generally indicates missing or invalid authentication. A `403 Forbidden` response indicates that the request does not have the required permissions.
+
+### 5. Security Configuration
+
+Set the following environment variables in IntelliJ IDEA or your deployment environment:
+
+```text
+GOOGLE_CLIENT_ID
+GOOGLE_CLIENT_SECRET
+JWT_SECRET
+DB_USERNAME
+DB_PASSWORD
+```
+
+Security best practices:
+
+- Never commit credentials or JWT signing secrets to GitHub.
+- Use environment variables for sensitive configuration.
+- Store passwords using BCrypt rather than plain text.
+- Validate JWT signatures and expiration.
+- Use HTTPS in deployed environments.
+- Assign roles according to the application's authorization requirements.
 
 ## API Documentation
 
 Swagger UI provides an interactive interface for exploring and testing the APIs.
 
-**Swagger UI:** `http://localhost:8080/swagger-ui.html`
+- **Swagger UI:** `http://localhost:8080/swagger-ui.html`
+- **OpenAPI specification:** `http://localhost:8080/v3/api-docs`
 
-**OpenAPI specification:** `http://localhost:8080/v3/api-docs`
-
-### API Endpoint Summary
-
-#### Authentication
+### Authentication
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/login` | Authenticate and obtain a JWT |
+| POST | `/api/auth/login` | Authenticate using username and password |
+| GET | `/oauth2/authorization/google` | Start Google OAuth2 login |
+| GET | `/login/oauth2/code/google` | OAuth2 callback handled by Spring Security |
 
-#### Students
+### Students
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -318,7 +385,7 @@ Swagger UI provides an interactive interface for exploring and testing the APIs.
 | DELETE | `/api/students/{id}` | Delete a student |
 | POST | `/api/students/{id}/image` | Upload or replace a student image |
 
-#### Departments
+### Departments
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -328,7 +395,7 @@ Swagger UI provides an interactive interface for exploring and testing the APIs.
 | PUT | `/api/departments/{id}` | Update a department |
 | DELETE | `/api/departments/{id}` | Delete a department |
 
-#### Courses
+### Courses
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -338,7 +405,7 @@ Swagger UI provides an interactive interface for exploring and testing the APIs.
 | PUT | `/api/courses/{id}` | Update a course |
 | DELETE | `/api/courses/{id}` | Delete a course |
 
-#### Enrollment Requests
+### Enrollment Requests
 
 | Method | Endpoint | Description |
 |---|---|---|
@@ -348,7 +415,9 @@ Swagger UI provides an interactive interface for exploring and testing the APIs.
 | POST | `/api/enrollment-requests/{id}/approve` | Approve a request |
 | POST | `/api/enrollment-requests/{id}/reject` | Reject a request |
 
-All endpoints other than login and the configured Swagger/OpenAPI paths require authentication.
+All protected API endpoints require a valid JWT. Login, configured Google OAuth2 routes, and configured Swagger/OpenAPI paths are accessible without an existing JWT. Individual endpoints may have additional role restrictions.
+
+Check the actual controller mappings and `SecurityConfig` when adding or changing endpoints.
 
 ## Getting Started
 
@@ -367,11 +436,9 @@ Install the following:
 ### 1. Clone the Repository
 
 ```bash
-git clone <YOUR_GITHUB_REPOSITORY_URL>
-cd student-management-system
+git clone https://github.com/Deepanshu07092000/Student_Management_System.git
+cd Student_Management_System
 ```
-
-Replace the repository URL with your actual GitHub repository URL.
 
 ### 2. Create the Database
 
@@ -385,9 +452,11 @@ CREATE DATABASE sms_db;
 
 Open:
 
-`src/main/resources/application.properties`
+```text
+src/main/resources/application.properties
+```
 
-Configure the MySQL connection, Redis connection, and JWT secret for your local environment.
+Configure the MySQL connection, Redis connection, JWT secret, and Google OAuth2 credentials.
 
 Example configuration:
 
@@ -410,28 +479,32 @@ spring.cache.redis.time-to-live=600000
 
 jwt.secret=${JWT_SECRET}
 jwt.access-token-expiration=900000
+
+spring.security.oauth2.client.registration.google.client-id=${GOOGLE_CLIENT_ID}
+spring.security.oauth2.client.registration.google.client-secret=${GOOGLE_CLIENT_SECRET}
+spring.security.oauth2.client.registration.google.scope=openid,profile,email
 ```
 
-Set `DB_USERNAME`, `DB_PASSWORD`, and `JWT_SECRET` as environment variables before starting the application.
+This is an example configuration. Preserve any additional properties already used by your project for file uploads, logging, Swagger, and Actuator.
 
-Generate a sufficiently long, cryptographically secure Base64-encoded JWT secret appropriate for the configured HMAC signing algorithm. Keep it private and never commit it to GitHub.
+Set `DB_USERNAME`, `DB_PASSWORD`, and `JWT_SECRET` before starting the application. For Google login, also set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`.
 
-The project uses additional properties for file uploads, logging, Swagger, and Actuator. Preserve those settings when updating your existing configuration.
+Generate a sufficiently long, cryptographically secure Base64-encoded JWT secret compatible with the HMAC signing algorithm used by your JWT implementation. Never publish it in the repository.
 
 ### 4. Start Redis
 
-Make sure your Redis server is running on the configured host and port.
+Ensure Redis is running on the configured host and port.
 
-Default configuration:
+Default local configuration:
 
 ```text
 Host: localhost
 Port: 6379
 ```
 
-Redis is used for caching, so verify connectivity before testing cache-enabled endpoints.
-
 ### 5. Build the Application
+
+Run this command from the project root:
 
 ```bash
 mvn clean install
@@ -443,35 +516,44 @@ mvn clean install
 mvn spring-boot:run
 ```
 
-Alternatively, run `StudentManagementSystemApplication.java` from your IDE.
+Alternatively, run `StudentManagementSystemApplication.java` from IntelliJ IDEA.
 
-The application starts on:
+The application starts at:
 
-`http://localhost:8080`
+```text
+http://localhost:8080
+```
 
 ## API Examples
 
-### Login and Obtain a Token
+### Login and Obtain a JWT
 
-Send a `POST` request to:
+Send a POST request to:
 
 ```text
 http://localhost:8080/api/auth/login
 ```
 
-Provide a valid username and password in the JSON request body.
+Example body:
 
-Copy the returned access token.
+```json
+{
+  "username": "YOUR_USERNAME",
+  "password": "YOUR_PASSWORD"
+}
+```
+
+Copy the `accessToken` from the response.
 
 ### Access a Protected Endpoint
 
-Send a `GET` request to:
+Send a GET request to:
 
 ```text
 http://localhost:8080/api/students?page=0&size=10
 ```
 
-Add this header:
+Add the following header:
 
 ```http
 Authorization: Bearer YOUR_ACCESS_TOKEN
@@ -498,11 +580,13 @@ POST /api/students/{id}/image
 
 Use `multipart/form-data` with a field named `file`. The configured maximum file size is 5 MB.
 
-Uploaded images are stored using the configured filesystem directory:
+The default upload directory documented for the project is:
 
 ```text
 uploads/student-images
 ```
+
+Check the file-storage configuration if your local directory differs.
 
 ## Logging and Monitoring
 
@@ -519,7 +603,7 @@ Spring AOP is used to log service-method execution time and exceptions.
 
 ### Spring Boot Actuator
 
-The project exposes selected Actuator endpoints for monitoring:
+The project exposes selected Actuator endpoints for monitoring, subject to the application's configuration:
 
 ```text
 http://localhost:8080/actuator/health
@@ -528,7 +612,7 @@ http://localhost:8080/actuator/metrics
 http://localhost:8080/actuator/loggers
 ```
 
-Review the exposure and access configuration before deploying to production. In particular, do not expose detailed health information or logger-management endpoints publicly without appropriate access controls.
+Before deploying to production, review endpoint exposure and access controls. Do not expose detailed health information or logger-management endpoints publicly without appropriate protection.
 
 ## Error Handling
 
@@ -543,25 +627,22 @@ The exception layer includes handling for scenarios such as:
 - File storage failures.
 - Request validation errors.
 
-The `ErrorResponse` class standardizes error information returned by the API.
-
-Appropriate HTTP status codes help clients understand whether a request succeeded or failed.
+The `ErrorResponse` class standardizes error information returned by the API. Appropriate HTTP status codes help clients understand whether a request succeeded or failed.
 
 ## Future Enhancements
 
-Potential next steps for improving the project include:
+Potential improvements include:
 
-- Enforcing role-based authorization for ADMIN and USER.
 - Adding refresh-token support and token revocation.
-- Adding automated unit and integration tests for all modules.
+- Expanding automated unit and integration tests.
 - Introducing database migration management with Flyway or Liquibase.
 - Adding Docker and Docker Compose for repeatable deployments.
 - Implementing CI/CD pipelines.
 - Adding production-grade metrics and centralized log aggregation.
 - Improving file storage with cloud object storage.
-- Adding API rate limiting and more granular security controls.
+- Adding API rate limiting and further security controls.
 
-These are potential improvements and are not all implemented in the current version.
+These enhancements are suggestions and may not be implemented in the current version.
 
 ## Learning Outcomes
 
@@ -569,7 +650,7 @@ This project provides practical experience with:
 
 - REST API design and HTTP status codes.
 - Layered architecture and separation of concerns.
-- Spring Security and JWT authentication.
+- Spring Security, JWT authentication, Google OAuth2 login, and role-based authorization.
 - JPA entity relationships and transaction management.
 - Pagination, sorting, and searching.
 - Redis caching.
@@ -580,6 +661,7 @@ This project provides practical experience with:
 ## Author
 
 **Deepanshu Kaushik**
+
 ---
 
 *This project is intended for learning, demonstration, and portfolio purposes. Review configuration, security, database migrations, testing, and operational controls before using it in a production environment.*
