@@ -15,4 +15,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
      * admin | encoded-password | ADMIN
      */
     Optional<User> findByUsername(String username);
+
+    // Check whether a username already exists.
+    boolean existsByUsername(String username);
 }
